@@ -1,0 +1,1 @@
+﻿Store type is GCP

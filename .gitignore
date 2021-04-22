@@ -1,0 +1,12 @@
+﻿/packages
+/GCPAnyAgent/.vs
+/GCPAnyAgent/packages
+/GCPAnyAgent/obj
+/GCPAnyAgent/bin
+/GCPAnyAgent/KF Packages
+/GCPAnyAgent/Properties
+/Tests/GCPCreds.json
+/Tests/obj
+/Tests/bin
+/TestResults
+.vs
