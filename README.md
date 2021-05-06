@@ -1,3 +1,23 @@
-Store Type is GCP
+# GCP AnyAgent
+## Gcp
 
-JSON Credentials should be entered into command via Password or supplied locally to host via environment variable GOOGLE_APPLICATION_CREDENTIALS which should point to the json credentials file on the system.
+This integration is used to inventory and manage certificates in GCP. 
+
+<!-- add integration specific information below -->
+*** 
+
+# Introduction 
+- TODO:
+
+# Setting up GCP Cert Store Type
+
+# Supported Functionality
+- Inventory, Management
+
+# Not Implemented/Supported
+- Binding
+
+ ***
+
+### License
+[Apache](https://apache.org/licenses/LICENSE-2.0)
