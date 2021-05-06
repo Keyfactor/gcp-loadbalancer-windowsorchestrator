@@ -1,0 +1,8 @@
+  
+{
+  "$schema": "https://keyfactor.github.io/integration-manifest-schema.json",
+  "integration_type": "gcp",
+  "name": "GCP AnyAgent",
+  "status": "pilot",
+  "description": "This integration is used to inventory and manage certificates in GCP. "
+}
