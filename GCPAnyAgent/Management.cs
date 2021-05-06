@@ -108,6 +108,26 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             return (Encoding.ASCII.GetBytes(certPem), Encoding.ASCII.GetBytes(privateKeyString));
         }
 
+        private void performAdd(ComputeService computeService, SslCertificate sslCertificate, string project)
+        {
+            SslCertificatesResource.InsertRequest request = computeService.SslCertificates.Insert(sslCertificate, project);
+            Operation response = request.Execute();
+
+            if (response.HttpErrorStatusCode != null)
+            {
+                Logger.Error("Error performing certificate add: " + response.HttpErrorMessage);
+                Logger.Debug(response.HttpErrorStatusCode);
+                throw new Exception(response.HttpErrorMessage);
+            }
+            if (response.Error != null)
+            {
+                Logger.Error("Error performing certificate add: " + response.Error.ToString());
+                Logger.Debug(response.Error.ToString());
+                throw new Exception(response.Error.ToString());
+
+            }
+        }
+
         private AnyJobCompleteInfo performAdd(AnyJobConfigInfo config)
         {
             Logger.Debug($"Begin Add...");
@@ -130,36 +150,46 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
             try
             {
-
-                //TODO: LOGIC TO SEE IF ALIAS EXISTS
-
-                SslCertificatesResource.InsertRequest request = computeService.SslCertificates.Insert(sslCertificate, project);
-
-                Operation response = request.Execute();
-
-                if(response.HttpErrorStatusCode != null)
-                {      
-                    Logger.Error("Error performing certificate add: " + response.HttpErrorMessage);
-                    Logger.Debug(response.HttpErrorStatusCode);
-                    throw new Exception(response.HttpErrorMessage);
-                }
-                if (response.Error != null)
-                {
-                    Logger.Error("Error performing certificate add: " + response.Error.ToString());
-                    Logger.Debug(response.Error.ToString());
-                    throw new Exception(response.Error.ToString());
-
-                }
+                performAdd(computeService, sslCertificate, project);
             }
             catch (Exception ex)
             {
-                Logger.Error("Error performing certificate add: " + ex.Message);
-                Logger.Debug(ex.StackTrace);
-                throw ex;
+
+                if (config.Job.Overwrite)
+                {
+                    performDelete(computeService, config.Job.Alias, project);
+                    performAdd(computeService, sslCertificate, project);
+                }
+                else
+                {
+                    Logger.Error("Error performing certificate add: " + ex.Message);
+                    Logger.Debug(ex.StackTrace);
+                    throw ex;
+                }
             }
 
             return new AnyJobCompleteInfo() { Status = 2, Message = "Successful" };
 
+        }
+
+        private void performDelete(ComputeService computeService, string alias, string project)
+        {
+            SslCertificatesResource.DeleteRequest request = computeService.SslCertificates.Delete(project, alias);
+
+            Operation response = request.Execute();
+
+            if (response.HttpErrorStatusCode != null)
+            {
+                Logger.Error("Error performing certificate delete: " + response.HttpErrorMessage);
+                Logger.Debug(response.HttpErrorStatusCode);
+                throw new Exception(response.HttpErrorMessage);
+            }
+            if (response.Error != null)
+            {
+                Logger.Error("Error performing certificate delete: " + response.Error.ToString());
+                Logger.Debug(response.Error.ToString());
+                throw new Exception(response.Error.ToString());
+            }
         }
 
         private void performDelete(AnyJobConfigInfo config)
@@ -175,23 +205,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
             try
             {
-                SslCertificatesResource.DeleteRequest request = computeService.SslCertificates.Delete(project, config.Job.Alias);
-
-                Operation response = request.Execute();
-
-                if (response.HttpErrorStatusCode != null)
-                {
-                    Logger.Error("Error performing certificate delete: " + response.HttpErrorMessage);
-                    Logger.Debug(response.HttpErrorStatusCode);
-                    throw new Exception(response.HttpErrorMessage);
-                }
-                if (response.Error != null)
-                {
-                    Logger.Error("Error performing certificate delete: " + response.Error.ToString());
-                    Logger.Debug(response.Error.ToString());
-                    throw new Exception(response.Error.ToString());
-
-                }
+                performDelete(computeService, config.Job.Alias, project);
             }
             catch (Exception ex)
             {
