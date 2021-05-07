@@ -148,6 +148,18 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
             string project = config.Store.StorePath;
 
+            string alias = config.Job.Alias;
+            string aliasPrefix = "kf";
+
+            if (String.IsNullOrWhiteSpace(alias))
+            {
+                // If keyPairName is not specified then create one based upon prefix and serial number
+                X509Certificate2 cert = new X509Certificate2(certPem);
+                alias = (aliasPrefix
+                            + "-" + new String(cert.SerialNumber.ToString().Reverse().ToArray()));
+                alias = alias.Substring(0, Math.Min(31, alias.Length));
+            }
+
             try
             {
                 performAdd(computeService, sslCertificate, project);
@@ -157,7 +169,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
                 if (config.Job.Overwrite)
                 {
-                    performDelete(computeService, config.Job.Alias, project);
+                    performDelete(computeService, alias, project);
                     performAdd(computeService, sslCertificate, project);
                 }
                 else
