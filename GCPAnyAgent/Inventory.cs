@@ -28,15 +28,7 @@ using Google.Apis.Services;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
 
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.OpenSsl;
-using Org.BouncyCastle.Security;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Web;
 
 using Data = Google.Apis.Compute.v1.Data;
 
@@ -111,7 +103,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
             //List<AgentCertStoreInventoryItem> is the collection that the interface expects to return from this job.  It will contain a collection of certificates found in the store along with other information about those certificates
             List<AgentCertStoreInventoryItem> inventoryItems = new List<AgentCertStoreInventoryItem>();
-
+            
             try
             {
                 //Code logic to:
@@ -128,7 +120,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 string project = config.Store.StorePath; // storeProperties["project"];
 
                 Dictionary<string, string> existing = config.Store.Inventory.ToDictionary(i => i.Alias, i => i.Thumbprints[0]);
-
+                
                 // 2) Custom logic to retrieve certificates from certificate store.
 
                 SslCertificatesResource.ListRequest request = computeService.SslCertificates.List(project);
@@ -163,7 +155,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                             inventoryItems.Add(new AgentCertStoreInventoryItem()
                             {
                                 Alias = sslCertificate.Name,
-                                Certificates = new string[] { Convert.ToBase64String(System.Text.Encoding.Default.GetBytes(sslCertificate.Certificate)) },
+                                Certificates = new string[] { sslCertificate.Certificate },
                                 ItemStatus = AgentInventoryItemStatus.Unknown,
                                 PrivateKeyEntry = false,
                                 UseChainLevel = false
@@ -176,7 +168,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                             inventoryItems.Add(new AgentCertStoreInventoryItem()
                             {
                                 Alias = sslCertificate.Name,
-                                Certificates = new string[] { Convert.ToBase64String(System.Text.Encoding.Default.GetBytes(sslCertificate.SelfManaged.Certificate)) },
+                                Certificates = new string[] { sslCertificate.SelfManaged.Certificate },
                                 ItemStatus = AgentInventoryItemStatus.Unknown,
                                 PrivateKeyEntry = false,
                                 UseChainLevel = false
@@ -214,8 +206,10 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
             try
             {
+                Logger.Debug("Sending certificates back to Command:" + inventoryItems.Count);
                 //Sends inventoried certificates back to KF Command
-                submitInventory.Invoke(inventoryItems);
+                bool status = submitInventory.Invoke(inventoryItems);
+                Logger.Debug("Send Certificate response: " + status);
                 //Status: 2=Success, 3=Warning, 4=Error
                 return new AnyJobCompleteInfo() { Status = 2, Message = "Successful" };
             }
