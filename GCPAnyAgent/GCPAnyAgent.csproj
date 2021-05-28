@@ -71,8 +71,8 @@
     <Reference Include="Google.Apis.PlatformServices, Version=1.51.0.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
       <HintPath>..\packages\Google.Apis.1.51.0\lib\net45\Google.Apis.PlatformServices.dll</HintPath>
     </Reference>
-    <Reference Include="Keyfactor.Platform.Extensions.Agents, Version=1.3.0.0, Culture=neutral, PublicKeyToken=0ed89d330114ab09, processorArchitecture=MSIL">
-      <HintPath>..\packages\Keyfactor.Platform.Extensions.Agents.1.3.0\lib\net462\Keyfactor.Platform.Extensions.Agents.dll</HintPath>
+    <Reference Include="Keyfactor.Platform.Extensions.Agents, Version=1.3.1.0, Culture=neutral, PublicKeyToken=0ed89d330114ab09, processorArchitecture=MSIL">
+      <HintPath>..\packages\Keyfactor.Platform.Extensions.Agents.1.3.1\lib\net462\Keyfactor.Platform.Extensions.Agents.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Win32.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Win32.Primitives.4.0.1\lib\net46\Microsoft.Win32.Primitives.dll</HintPath>
@@ -231,6 +231,9 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LICENSE" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
