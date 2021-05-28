@@ -35,11 +35,16 @@ using Org.BouncyCastle.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Collections.Generic;
+using System.CodeDom;
+using System.Text.RegularExpressions;
 
 namespace Keyfactor.Extensions.Orchestrator.GCP
 {
     public class Management : LoggingClientBase, IAgentJobExtension
     {
+        private const int GCP_MAX_ALIAS_LENGTH = 62;
+        private const int MAX_SIMPLENAME_LENGTH = 35;
+
         public string GetJobClass()
         {
             //Setting to "Management" makes this the entry point for all Management jobs
@@ -52,7 +57,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             return "GCP";
         }
 
-        public static GoogleCredential GetCredential(AnyJobConfigInfo config)
+        public GoogleCredential GetCredential(AnyJobConfigInfo config)
         {
 
             //Example Environment variable for Application Default
@@ -61,14 +66,21 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             //Example reading from File
             //GoogleCredential credential = GoogleCredential.FromFile("Keyfactor.Extensions.Orchestrator.GCP.Tests.GCPCreds.json");
 
+
+            Dictionary<string, string> storeProperties = JsonConvert.DeserializeObject<Dictionary<string, string>>((string)config.Store.Properties);
+            string jsonKey = storeProperties["jsonKey"];
+
             GoogleCredential credential;
-            if (config.Server.Password != null)
+            
+            if (String.IsNullOrWhiteSpace(jsonKey))
             {
-                credential = GoogleCredential.FromJson(config.Server.Password);
+                Logger.Debug("Loading credentials from application default");
+                credential = Task.Run(() => GoogleCredential.GetApplicationDefaultAsync()).Result;
             }
             else
             {
-                credential = Task.Run(() => GoogleCredential.GetApplicationDefaultAsync()).Result;
+                Logger.Debug("Loading key from store properties");
+                credential = GoogleCredential.FromJson(jsonKey);
             }
 
             if (credential.IsCreateScopedRequired)
@@ -128,6 +140,33 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             }
         }
 
+        private string generateAlias(X509Certificate2 cert)
+        {
+            // If keyPairName is not specified then create one based upon prefix and serial number
+            // limit to lowercase, number, and hyphen
+            // convert period into hyphen.
+            
+            string prefix = "kf";
+            string alias = prefix;
+
+            string simpleName = cert.GetNameInfo(X509NameType.SimpleName, false);
+            simpleName = simpleName.Replace('.', '-').ToLower();
+            //set maxlength for simplename
+            simpleName = simpleName.Substring(0, Math.Min(MAX_SIMPLENAME_LENGTH, simpleName.Length));
+
+            alias = alias + "-" + simpleName;
+            alias = alias + "-" + new String(cert.SerialNumber.ToString().ToLower().Reverse().ToArray());
+
+            //strip characters that are not valid
+            Regex alphaNumericHyphen = new Regex("[^a-z0-9-]");
+            alias = alphaNumericHyphen.Replace(alias, "");
+
+            //ensure alias is not longer then max length
+            alias = alias.Substring(0, Math.Min(GCP_MAX_ALIAS_LENGTH, alias.Length));
+
+            return alias;
+        }
+
         private AnyJobCompleteInfo performAdd(AnyJobConfigInfo config)
         {
             Logger.Debug($"Begin Add...");
@@ -139,26 +178,27 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
             byte[] pfxBytes = Convert.FromBase64String(config.Job.EntryContents);
             (byte[] certPem, byte[] privateKey) = GetPemFromPFX(pfxBytes, config.Job.PfxPassword.ToCharArray());
-            
-            SslCertificate sslCertificate = new SslCertificate{
-                Certificate = System.Text.Encoding.Default.GetString(certPem),
-                PrivateKey = System.Text.Encoding.Default.GetString(privateKey),
-                Name = config.Job.Alias
-            };
-
-            string project = config.Store.StorePath;
 
             string alias = config.Job.Alias;
-            string aliasPrefix = "kf";
 
             if (String.IsNullOrWhiteSpace(alias))
             {
-                // If keyPairName is not specified then create one based upon prefix and serial number
                 X509Certificate2 cert = new X509Certificate2(certPem);
-                alias = (aliasPrefix
-                            + "-" + new String(cert.SerialNumber.ToString().Reverse().ToArray()));
-                alias = alias.Substring(0, Math.Min(31, alias.Length));
+                alias = generateAlias(cert);
+                Logger.Debug($"Using generated alias: " + alias);
             }
+            else
+            {
+                Logger.Debug($"Using alias from Job: " + alias);
+            }
+
+            SslCertificate sslCertificate = new SslCertificate{
+                Certificate = System.Text.Encoding.Default.GetString(certPem),
+                PrivateKey = System.Text.Encoding.Default.GetString(privateKey),
+                Name = alias
+            };
+
+            string project = config.Store.StorePath;
 
             try
             {
