@@ -11,16 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="GCPCreds.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="GCPCreds.json">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="CSS.Common" Version="1.5.0" />
     <PackageReference Include="FluentAssertions" Version="5.10.3" />
     <PackageReference Include="Google.Apis" Version="1.51.0" />

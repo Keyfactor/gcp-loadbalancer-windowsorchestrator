@@ -34,7 +34,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
 
         public static Mock<SubmitDiscoveryResults> GetSubmitDiscoveryDelegateMock() => new Mock<SubmitDiscoveryResults>();
 
-        public static Mock<GCPStore> gcpStore;
+        public static Mock<GCPStore> GetGCPStoreDelegateMock() => new Mock<GCPStore>();
 
         private static AnyJobConfigInfo GetMockBaseConfig()
         {
@@ -71,15 +71,6 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
             return ajc;
         }
 
-        public static Mock<GCPStore> getGCPStoreMock()
-        {
-            Mock<GCPStore> store =  new Mock<GCPStore>();
-            List<AgentCertStoreInventoryItem> inventoryItems = new List<AgentCertStoreInventoryItem>();
-            store.Setup(m => m.list()).Returns(inventoryItems);
-
-            return store;
-        }
-
         public static AnyJobConfigInfo GetMockInventoryConfig()
         {
             return GetMockBaseConfig();
@@ -97,6 +88,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
             return config;
         }
 
+        /*
         private static string GetFileFromManifest(string path)
         {
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(path))
@@ -110,5 +102,6 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
             }
 
         }
+        */
     }
 }
