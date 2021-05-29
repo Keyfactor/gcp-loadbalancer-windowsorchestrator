@@ -6,7 +6,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{F57D07DB-613D-4837-B709-6E943CD4BA10}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>KeyfactorAnyAgent</RootNamespace>
+    <RootNamespace>Keyfactor.Extensions.Orchestrator.GCP</RootNamespace>
     <AssemblyName>GCPAnyAgent</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -224,6 +224,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GCPStore.cs" />
     <Compile Include="Management.cs" />
     <Compile Include="Inventory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
