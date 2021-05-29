@@ -13,7 +13,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Keyfactor.Platform.Extensions.Agents;
 using Keyfactor.Platform.Extensions.Agents.Delegates;
 using Keyfactor.Platform.Extensions.Agents.Enums;
@@ -22,6 +21,8 @@ using System.Reflection;
 
 using Moq;
 using System.IO;
+
+using Newtonsoft.Json;
 
 namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
 {
@@ -33,6 +34,8 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
 
         public static Mock<SubmitDiscoveryResults> GetSubmitDiscoveryDelegateMock() => new Mock<SubmitDiscoveryResults>();
 
+        public static Mock<GCPStore> gcpStore;
+
         private static AnyJobConfigInfo GetMockBaseConfig()
         {
             //config.Store.Inventory
@@ -43,15 +46,21 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
                 JobTypeId = Guid.NewGuid(),
             };
             var ajServer = new AnyJobServerInfo { 
-                Username = "unused", 
-                Password = Mocks.GetFileFromManifest("Keyfactor.Extensions.Orchestrator.GCP.Tests.GCPCreds.json"), 
+                Username = "", 
+                Password = "", 
                 UseSSL = true 
             };
-            var ajStore = new AnyJobStoreInfo { 
-                ClientMachine = "<update me>", 
-                StorePath = "/nsconfig/ssl/", 
-                Inventory = new List<AnyJobInventoryItem>() 
+
+            Dictionary<string, string> storeProperties = new Dictionary<string, string>();
+            storeProperties.Add("jsonKey", Mocks.GetFileFromManifest("Keyfactor.Extensions.Orchestrator.GCP.Tests.GCPCreds.json"));
+
+            var ajStore = new AnyJobStoreInfo {
+                ClientMachine = "<update me>",
+                StorePath = "lucky-rookery-276317",
+                Inventory = new List<AnyJobInventoryItem>(),
+                Properties = JsonConvert.SerializeObject(storeProperties)
             };
+
             var ajc = new AnyJobConfigInfo()
             {
                 Job = ajJob,
@@ -60,6 +69,15 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
             };
 
             return ajc;
+        }
+
+        public static Mock<GCPStore> getGCPStoreMock()
+        {
+            Mock<GCPStore> store =  new Mock<GCPStore>();
+            List<AgentCertStoreInventoryItem> inventoryItems = new List<AgentCertStoreInventoryItem>();
+            store.Setup(m => m.list()).Returns(inventoryItems);
+
+            return store;
         }
 
         public static AnyJobConfigInfo GetMockInventoryConfig()

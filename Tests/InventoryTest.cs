@@ -37,7 +37,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
             
             var mockInventoryDelegate = Mocks.GetSubmitInventoryDelegateMock();
             mockInventoryDelegate.Setup(m => m.Invoke(It.IsAny<List<AgentCertStoreInventoryItem>>())).Returns(true);
-            var result = inventory.Object.processJob(Mocks.GetMockInventoryConfig(), mockInventoryDelegate.Object, Mocks.GetSubmitEnrollmentDelegateMock().Object, Mocks.GetSubmitDiscoveryDelegateMock().Object);
+            var result = inventory.Object.processJob(Mocks.GetMockInventoryConfig(), mockInventoryDelegate.Object, Mocks.GetSubmitEnrollmentDelegateMock().Object, Mocks.GetSubmitDiscoveryDelegateMock().Object, Mocks.getGCPStoreMock().Object);
 
             mockInventoryDelegate.Verify(m => m(It.IsAny<List<AgentCertStoreInventoryItem>>()));
         }
