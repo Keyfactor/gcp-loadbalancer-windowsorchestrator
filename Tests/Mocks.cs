@@ -52,7 +52,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP.Tests
             };
 
             Dictionary<string, string> storeProperties = new Dictionary<string, string>();
-            storeProperties.Add("jsonKey", Mocks.GetFileFromManifest("Keyfactor.Extensions.Orchestrator.GCP.Tests.GCPCreds.json"));
+            //storeProperties.Add("jsonKey", Mocks.GetFileFromManifest("Keyfactor.Extensions.Orchestrator.GCP.Tests.GCPCreds.json"));
 
             var ajStore = new AnyJobStoreInfo {
                 ClientMachine = "<update me>",
