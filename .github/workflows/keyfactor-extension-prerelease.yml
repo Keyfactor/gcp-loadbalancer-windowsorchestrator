@@ -67,7 +67,7 @@ jobs:
       - name: Archive Files
         run: |
            md ${{ github.workspace }}\zip\Keyfactor
-           Compress-Archive -Path ${{ github.workspace }}\GCPAnyAgent\GCPAnyAgent\bin\Release\*.dll,${{ github.workspace }}\GCPAnyAgent\GCPAnyAgent\bin\Release\app.config -DestinationPath ${{ github.workspace }}\zip\Keyfactor\$Env:REPO_NAME.zip -Force
+           Compress-Archive -Path ${{ github.workspace }}\GCPAnyAgent\bin\Release\*.dll,${{ github.workspace }}\GCPAnyAgent\bin\Release\GCPAnyAgent.dll.config -DestinationPath ${{ github.workspace }}\zip\Keyfactor\$Env:REPO_NAME.zip -Force
       
 
       - name: Upload a Build Artifact
