@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Newtonsoft.Json;
@@ -49,34 +50,114 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             Logger.Debug("jsonKey size:" + this.jsonKey.Length);
         }
 
-        public void insert(SslCertificate sslCertificate, bool overwrite)
+        public void insert(SslCertificate sslCertificate, string prevAlias, bool overwrite)
         {
             try
             {
-                insert(sslCertificate);
-            }
-            catch (Exception ex)
-            {
-                if (overwrite)
+                string newCertificateSelfLink = GetCeritificateSelfLink(sslCertificate.Name);
+
+                if (!string.IsNullOrEmpty(prevAlias))
                 {
+                    string prevCertificateSelfLink = GetCeritificateSelfLink(prevAlias);
+                    if (!string.IsNullOrEmpty(prevCertificateSelfLink) && !overwrite)
+                    {
+                        string message = "Overwrite flag not set but certificate exists.  If attempting to renew, please check overwrite when scheduling this job.";
+                        Logger.Error(message);
+                        throw new Exception(message);
+                    }
+
+                    insert(sslCertificate);
+
+
+                    // Process bindings
                     try
                     {
-                        delete(sslCertificate.Name);
-                        insert(sslCertificate);
+                        // For HTTPS proxy resources
+                        TargetHttpsProxiesResource.ListRequest httpsRequest = new TargetHttpsProxiesResource(getComputeService()).List(project);
+                        Data.TargetHttpsProxyList httpsProxyList = httpsRequest.Execute();
+
+                        foreach (TargetHttpsProxy proxy in httpsProxyList.Items)
+                        {
+                            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                            {
+                                List<string> sslCertificates = (List<string>)proxy.SslCertificates;
+                                sslCertificates.Remove(prevCertificateSelfLink);
+                                sslCertificates.Add(newCertificateSelfLink);
+
+                                TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
+                                httpsCertRequest.SslCertificates = sslCertificates;
+                                TargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, proxy.SelfLink);
+                                Operation response = setSSLRequest.Execute();
+
+                                if (response.HttpErrorStatusCode != null)
+                                {
+                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
+                                    throw new Exception(response.HttpErrorMessage);
+                                }
+                                if (response.Error != null)
+                                {
+                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
+                                    throw new Exception(response.Error.ToString());
+                                }
+
+                            }
+                        }
+
+
+                        // For SSL proxy resources
+                        TargetSslProxiesResource.ListRequest sslRequest = new TargetSslProxiesResource(getComputeService()).List(project);
+                        Data.TargetSslProxyList proxyList = sslRequest.Execute();
+
+                        foreach (TargetSslProxy proxy in proxyList.Items)
+                        {
+                            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                            {
+                                List<string> sslCertificates = (List<string>)proxy.SslCertificates;
+                                sslCertificates.Remove(prevCertificateSelfLink);
+                                sslCertificates.Add(newCertificateSelfLink);
+
+                                TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
+                                sslCertRequest.SslCertificates = sslCertificates;
+                                TargetSslProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetSslProxiesResource(getComputeService()).SetSslCertificates(sslCertRequest, project, proxy.SelfLink);
+                                Operation response = setSSLRequest.Execute();
+
+                                if (response.HttpErrorStatusCode != null)
+                                {
+                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
+                                    throw new Exception(response.HttpErrorMessage);
+                                }
+                                if (response.Error != null)
+                                {
+                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
+                                    throw new Exception(response.Error.ToString());
+                                }
+
+                            }
+                        }
+
                     }
-                    catch (Exception ex2)
+                    catch (Exception ex)
                     {
-                        Logger.Error("Error performing certificate add with overwrite: " + ex2.Message);
-                        Logger.Debug(ex2.StackTrace);
-                        throw ex2;
+                        string message = "Error attempting to bind added certificate to resource";
+                        Logger.Error(message);
+                        throw new Exception(message);
                     }
                 }
                 else
                 {
-                    Logger.Error("Error performing certificate add: " + ex.Message);
-                    Logger.Debug(ex.StackTrace);
-                    throw ex;
+                    insert(sslCertificate);
                 }
+
+                if (!string.IsNullOrEmpty(prevAlias))
+                {
+                    delete(prevAlias);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Error adding or binding certificate: " + ex.Message);
+                Logger.Debug(ex.StackTrace);
+                throw ex;
             }
         }
 
@@ -177,6 +258,17 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 Logger.Debug(response.Error.ToString());
                 throw new Exception(response.Error.ToString());
             }
+        }
+
+        private string GetCeritificateSelfLink(string prevAlias)
+        {
+            SslCertificatesResource.GetRequest request = this.getComputeService().SslCertificates.Get(project, prevAlias);
+            Data.SslCertificate certificate = request.Execute();
+
+            if (certificate == null || string.IsNullOrEmpty(certificate.Certificate))
+                return null;
+
+            return certificate.SelfLink;
         }
 
         private ComputeService getComputeService()
