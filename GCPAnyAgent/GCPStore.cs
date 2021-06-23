@@ -23,6 +23,7 @@ using CSS.Common.Logging;
 
 using Keyfactor.Platform.Extensions.Agents;
 
+using Google;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Compute.v1;
 using Google.Apis.Compute.v1.Data;
@@ -54,11 +55,19 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
         {
             try
             {
-                string newCertificateSelfLink = GetCeritificateSelfLink(sslCertificate.Name);
-
                 if (!string.IsNullOrEmpty(prevAlias))
                 {
-                    string prevCertificateSelfLink = GetCeritificateSelfLink(prevAlias);
+                    string prevCertificateSelfLink = string.Empty;
+                    try
+                    {
+                        prevCertificateSelfLink = GetCeritificateSelfLink(prevAlias);
+                    }
+                    catch (Google.GoogleApiException ex)
+                    {
+                        if (ex.HttpStatusCode != System.Net.HttpStatusCode.NotFound)
+                            throw ex;
+                    }
+
                     if (!string.IsNullOrEmpty(prevCertificateSelfLink) && !overwrite)
                     {
                         string message = "Overwrite flag not set but certificate exists.  If attempting to renew, please check overwrite when scheduling this job.";
@@ -67,6 +76,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                     }
 
                     insert(sslCertificate);
+                    string newCertificateSelfLink = GetCeritificateSelfLink(sslCertificate.Name);
 
 
                     // Process bindings
@@ -150,7 +160,15 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
                 if (!string.IsNullOrEmpty(prevAlias))
                 {
-                    delete(prevAlias);
+                    try
+                    {
+                        delete(prevAlias);
+                    }
+                    catch(Google.GoogleApiException ex)
+                    {
+                        if (ex.HttpStatusCode != System.Net.HttpStatusCode.NotFound)
+                            throw ex;
+                    }
                 }
             }
             catch (Exception ex)
