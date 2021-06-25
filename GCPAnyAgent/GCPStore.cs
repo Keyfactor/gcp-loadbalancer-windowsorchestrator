@@ -86,30 +86,33 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                         TargetHttpsProxiesResource.ListRequest httpsRequest = new TargetHttpsProxiesResource(getComputeService()).List(project);
                         Data.TargetHttpsProxyList httpsProxyList = httpsRequest.Execute();
 
-                        foreach (TargetHttpsProxy proxy in httpsProxyList.Items)
+                        if (httpsProxyList.Items != null)
                         {
-                            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                            foreach (TargetHttpsProxy proxy in httpsProxyList.Items)
                             {
-                                List<string> sslCertificates = (List<string>)proxy.SslCertificates;
-                                sslCertificates.Remove(prevCertificateSelfLink);
-                                sslCertificates.Add(newCertificateSelfLink);
-
-                                TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
-                                httpsCertRequest.SslCertificates = sslCertificates;
-                                TargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, proxy.SelfLink);
-                                Operation response = setSSLRequest.Execute();
-
-                                if (response.HttpErrorStatusCode != null)
+                                if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
                                 {
-                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
-                                    throw new Exception(response.HttpErrorMessage);
-                                }
-                                if (response.Error != null)
-                                {
-                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
-                                    throw new Exception(response.Error.ToString());
-                                }
+                                    List<string> sslCertificates = (List<string>)proxy.SslCertificates;
+                                    sslCertificates.Remove(prevCertificateSelfLink);
+                                    sslCertificates.Add(newCertificateSelfLink);
 
+                                    TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
+                                    httpsCertRequest.SslCertificates = sslCertificates;
+                                    TargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, proxy.Name);
+                                    Operation response = setSSLRequest.Execute();
+
+                                    if (response.HttpErrorStatusCode != null)
+                                    {
+                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
+                                        throw new Exception(response.HttpErrorMessage);
+                                    }
+                                    if (response.Error != null)
+                                    {
+                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
+                                        throw new Exception(response.Error.ToString());
+                                    }
+
+                                }
                             }
                         }
 
@@ -118,30 +121,33 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                         TargetSslProxiesResource.ListRequest sslRequest = new TargetSslProxiesResource(getComputeService()).List(project);
                         Data.TargetSslProxyList proxyList = sslRequest.Execute();
 
-                        foreach (TargetSslProxy proxy in proxyList.Items)
+                        if (proxyList.Items != null)
                         {
-                            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                            foreach (TargetSslProxy proxy in proxyList.Items)
                             {
-                                List<string> sslCertificates = (List<string>)proxy.SslCertificates;
-                                sslCertificates.Remove(prevCertificateSelfLink);
-                                sslCertificates.Add(newCertificateSelfLink);
-
-                                TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
-                                sslCertRequest.SslCertificates = sslCertificates;
-                                TargetSslProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetSslProxiesResource(getComputeService()).SetSslCertificates(sslCertRequest, project, proxy.SelfLink);
-                                Operation response = setSSLRequest.Execute();
-
-                                if (response.HttpErrorStatusCode != null)
+                                if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
                                 {
-                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
-                                    throw new Exception(response.HttpErrorMessage);
-                                }
-                                if (response.Error != null)
-                                {
-                                    Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
-                                    throw new Exception(response.Error.ToString());
-                                }
+                                    List<string> sslCertificates = (List<string>)proxy.SslCertificates;
+                                    sslCertificates.Remove(prevCertificateSelfLink);
+                                    sslCertificates.Add(newCertificateSelfLink);
 
+                                    TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
+                                    sslCertRequest.SslCertificates = sslCertificates;
+                                    TargetSslProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetSslProxiesResource(getComputeService()).SetSslCertificates(sslCertRequest, project, proxy.Name);
+                                    Operation response = setSSLRequest.Execute();
+
+                                    if (response.HttpErrorStatusCode != null)
+                                    {
+                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
+                                        throw new Exception(response.HttpErrorMessage);
+                                    }
+                                    if (response.Error != null)
+                                    {
+                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
+                                        throw new Exception(response.Error.ToString());
+                                    }
+
+                                }
                             }
                         }
 
