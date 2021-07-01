@@ -119,17 +119,11 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             byte[] pfxBytes = Convert.FromBase64String(config.Job.EntryContents);
             (byte[] certPem, byte[] privateKey) = GetPemFromPFX(pfxBytes, config.Job.PfxPassword.ToCharArray());
 
-            //string alias = config.Job.Alias;
-            //if (String.IsNullOrWhiteSpace(alias))
-            //{
-                X509Certificate2 cert = new X509Certificate2(certPem);
-                string alias = generateAlias(cert);
-                Logger.Debug($"Using generated alias: " + alias);
-            //}
-            //else
-            //{
-            //    Logger.Debug($"Using alias from Job: " + alias);
-            //}
+            X509Certificate2 cert = new X509Certificate2(certPem);
+            string alias = string.IsNullOrWhiteSpace(config.Job.Alias) ? generateAlias(cert) : config.Job.Alias;
+
+            string jobOrGenerated = string.IsNullOrWhiteSpace(config.Job.Alias) ? "generated" : "job";
+            Logger.Debug($"Using {jobOrGenerated} alias {alias}");
 
             return new SslCertificate
             {
@@ -151,7 +145,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 switch (config.Job.OperationType)
                 {
                     case AnyJobOperationType.Add:
-                        store.insert(GetSslCertificate(config), config.Job.Alias, config.Job.Overwrite);
+                        store.insert(GetSslCertificate(config), config.Job.Overwrite);
                         break;
                     case AnyJobOperationType.Remove:
                         store.delete(config.Job.Alias);

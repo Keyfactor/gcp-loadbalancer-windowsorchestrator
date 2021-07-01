@@ -51,130 +51,102 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             Logger.Debug("jsonKey size:" + this.jsonKey.Length);
         }
 
-        public void insert(SslCertificate sslCertificate, string prevAlias, bool overwrite)
+        public void insert(SslCertificate sslCertificate, bool overwrite)
         {
+            string alias = sslCertificate.Name;
+            string tempAlias = alias + "Temp";
+            string targetCertificateSelfLink = string.Empty;
+            string tempCertificateSelfLink = string.Empty;
+
             try
             {
-                if (!string.IsNullOrEmpty(prevAlias))
+                try
                 {
-                    string prevCertificateSelfLink = string.Empty;
-                    try
-                    {
-                        prevCertificateSelfLink = GetCeritificateSelfLink(prevAlias);
-                    }
-                    catch (Google.GoogleApiException ex)
-                    {
-                        if (ex.HttpStatusCode != System.Net.HttpStatusCode.NotFound)
-                            throw ex;
-                    }
-
-                    if (!string.IsNullOrEmpty(prevCertificateSelfLink) && !overwrite)
-                    {
-                        string message = "Overwrite flag not set but certificate exists.  If attempting to renew, please check overwrite when scheduling this job.";
-                        Logger.Error(message);
-                        throw new Exception(message);
-                    }
-
-                    insert(sslCertificate);
-                    string newCertificateSelfLink = GetCeritificateSelfLink(sslCertificate.Name);
-
-
-                    // Process bindings
-                    try
-                    {
-                        // For HTTPS proxy resources
-                        TargetHttpsProxiesResource.ListRequest httpsRequest = new TargetHttpsProxiesResource(getComputeService()).List(project);
-                        Data.TargetHttpsProxyList httpsProxyList = httpsRequest.Execute();
-
-                        if (httpsProxyList.Items != null)
-                        {
-                            foreach (TargetHttpsProxy proxy in httpsProxyList.Items)
-                            {
-                                if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
-                                {
-                                    List<string> sslCertificates = (List<string>)proxy.SslCertificates;
-                                    sslCertificates.Remove(prevCertificateSelfLink);
-                                    sslCertificates.Add(newCertificateSelfLink);
-
-                                    TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
-                                    httpsCertRequest.SslCertificates = sslCertificates;
-                                    TargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, proxy.Name);
-                                    Operation response = setSSLRequest.Execute();
-
-                                    if (response.HttpErrorStatusCode != null)
-                                    {
-                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
-                                        throw new Exception(response.HttpErrorMessage);
-                                    }
-                                    if (response.Error != null)
-                                    {
-                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
-                                        throw new Exception(response.Error.ToString());
-                                    }
-
-                                }
-                            }
-                        }
-
-
-                        // For SSL proxy resources
-                        TargetSslProxiesResource.ListRequest sslRequest = new TargetSslProxiesResource(getComputeService()).List(project);
-                        Data.TargetSslProxyList proxyList = sslRequest.Execute();
-
-                        if (proxyList.Items != null)
-                        {
-                            foreach (TargetSslProxy proxy in proxyList.Items)
-                            {
-                                if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
-                                {
-                                    List<string> sslCertificates = (List<string>)proxy.SslCertificates;
-                                    sslCertificates.Remove(prevCertificateSelfLink);
-                                    sslCertificates.Add(newCertificateSelfLink);
-
-                                    TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
-                                    sslCertRequest.SslCertificates = sslCertificates;
-                                    TargetSslProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetSslProxiesResource(getComputeService()).SetSslCertificates(sslCertRequest, project, proxy.Name);
-                                    Operation response = setSSLRequest.Execute();
-
-                                    if (response.HttpErrorStatusCode != null)
-                                    {
-                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
-                                        throw new Exception(response.HttpErrorMessage);
-                                    }
-                                    if (response.Error != null)
-                                    {
-                                        Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
-                                        throw new Exception(response.Error.ToString());
-                                    }
-
-                                }
-                            }
-                        }
-
-                    }
-                    catch (Exception ex)
-                    {
-                        string message = "Error attempting to bind added certificate to resource";
-                        Logger.Error(message);
-                        throw new Exception(message);
-                    }
+                    targetCertificateSelfLink = GetCeritificateSelfLink(alias);
                 }
+                catch (Google.GoogleApiException ex)
+                {
+                    if (ex.HttpStatusCode != System.Net.HttpStatusCode.NotFound)
+                        throw ex;
+                }
+
+                //SCENARIO => certificate alias exists, but overwrite flag not set.  ERROR
+                if (!string.IsNullOrEmpty(targetCertificateSelfLink) && !overwrite)
+                {
+                    string message = "Overwrite flag not set but certificate exists.  If attempting to renew, please check overwrite when scheduling this job.";
+                    Logger.Error(message);
+                    throw new Exception(message);
+                }
+
+                //SCENARIO => certificate alias does not exist and overwrite not set.  Because overwrite was not set we do not need to check for temporary alias that may have been created in an earlier
+                //  job but not removed due to error.  Since overwrite is not set, the renewal workflow that could have generated a temporary alias would not have been run.  INSERT NEW CERTIFICATE, NO BINDINGS
+                if (string.IsNullOrEmpty(targetCertificateSelfLink) && !overwrite)
+                {
+                    Logger.Debug("Certificate is not in GCP.  Insert new certificate.");
+                    insert(sslCertificate);
+                    return;
+                }
+
+                // check for existence of cert with this temporary alias in GCP
+                Logger.Debug($"Get cert for temp alias - {tempAlias}");
+                try
+                {
+                    tempCertificateSelfLink = GetCeritificateSelfLink(tempAlias);
+                }
+                catch (Google.GoogleApiException ex)
+                {
+                    if (ex.HttpStatusCode != System.Net.HttpStatusCode.NotFound)
+                        throw ex;
+                }
+
+                //SCENARIO => Overwrite flag set.  Neither the passed in alias nor the temporary alias exists, so no clean up from a previous job is necessary.  No
+                //  certificate exists.  INSERT NEW CERTIFICATE, NO BINDINGS
+                if (string.IsNullOrEmpty(targetCertificateSelfLink) && string.IsNullOrEmpty(tempCertificateSelfLink))
+                {
+                    Logger.Debug("Certificate is not in GCP.  Insert new certificate.");
+                    insert(sslCertificate);
+                    return;
+                }
+
+                //SCENARIO => certificate exists for passed in alias 
+                if (!string.IsNullOrEmpty(targetCertificateSelfLink))
+                {
+                    //SCENARIO => if temporary certificate does not already exist, it must be added so it can be bound next as a temporary pre-cursor to removing desired alias, adding it and binding with it
+                    if (string.IsNullOrEmpty(tempCertificateSelfLink))
+                    {
+                        Logger.Debug("Certificate exists in GCP.  Begin renewal by adding certificate with temporary alias.");
+                        SslCertificate tempSSLCertificate = sslCertificate;
+                        tempSSLCertificate.Name = tempAlias;
+                        insert(tempSSLCertificate);
+                        try
+                        {
+                            tempCertificateSelfLink = GetCeritificateSelfLink(tempAlias);
+                        }
+                        catch (Google.GoogleApiException ex)
+                        {
+                            if (ex.HttpStatusCode != System.Net.HttpStatusCode.NotFound)
+                                throw ex;
+                        }
+                    }
+
+                    //SCENARIO => renew certificate process - bind to temporary alias, delete previous version of cert with desired alias, add renewed certificate, update bindings to renewed cert and remove temp bindings,
+                    //   delete cert with temp alias
+                    Logger.Debug("Bind cert with temp alias, delete cert to be renewed, add renewed cert, update bindings to new renewed cert, delete temp cert");
+                    processBindings(targetCertificateSelfLink, tempCertificateSelfLink);
+                    delete(alias);
+                    insert(sslCertificate);
+                    processBindings(tempCertificateSelfLink, targetCertificateSelfLink);
+                    delete(tempAlias);
+                }
+                //SCENARIO => certificate does NOT exist for passed in alias.  certificate MUST exist for temporary alias since we already know one or both MUST exist from previous check.
+                //  Add renewed certificate with passed in alias, bind it while removing temporary alias from binding (if exists), delete temporary alias cert
                 else
                 {
+                    Logger.Debug("Certificate is not in GCP, but temporary one is - Cleanup of prior error state.  insert renewed certificate, bind renewed certificate and remove temp binding, delete temporary certificate.");
                     insert(sslCertificate);
-                }
-
-                if (!string.IsNullOrEmpty(prevAlias))
-                {
-                    try
-                    {
-                        delete(prevAlias);
-                    }
-                    catch(Google.GoogleApiException ex)
-                    {
-                        if (ex.HttpStatusCode != System.Net.HttpStatusCode.NotFound)
-                            throw ex;
-                    }
+                    processBindings(tempCertificateSelfLink, targetCertificateSelfLink);
+                    delete(tempAlias);
+                    return;
                 }
             }
             catch (Exception ex)
@@ -281,6 +253,87 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 Logger.Error("Error performing certificate delete: " + response.Error.ToString());
                 Logger.Debug(response.Error.ToString());
                 throw new Exception(response.Error.ToString());
+            }
+        }
+
+        private void processBindings(string prevCertificateSelfLink, string newCertificateSelfLink)
+        {
+            try
+            {
+                // For HTTPS proxy resources
+                TargetHttpsProxiesResource.ListRequest httpsRequest = new TargetHttpsProxiesResource(getComputeService()).List(project);
+                Data.TargetHttpsProxyList httpsProxyList = httpsRequest.Execute();
+
+                if (httpsProxyList.Items != null)
+                {
+                    foreach (TargetHttpsProxy proxy in httpsProxyList.Items)
+                    {
+                        if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                        {
+                            List<string> sslCertificates = (List<string>)proxy.SslCertificates;
+                            sslCertificates.Remove(prevCertificateSelfLink);
+                            sslCertificates.Add(newCertificateSelfLink);
+
+                            TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
+                            httpsCertRequest.SslCertificates = sslCertificates;
+                            TargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, proxy.Name);
+                            Operation response = setSSLRequest.Execute();
+
+                            if (response.HttpErrorStatusCode != null)
+                            {
+                                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
+                                throw new Exception(response.HttpErrorMessage);
+                            }
+                            if (response.Error != null)
+                            {
+                                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
+                                throw new Exception(response.Error.ToString());
+                            }
+
+                        }
+                    }
+                }
+
+
+                // For SSL proxy resources
+                TargetSslProxiesResource.ListRequest sslRequest = new TargetSslProxiesResource(getComputeService()).List(project);
+                Data.TargetSslProxyList proxyList = sslRequest.Execute();
+
+                if (proxyList.Items != null)
+                {
+                    foreach (TargetSslProxy proxy in proxyList.Items)
+                    {
+                        if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                        {
+                            List<string> sslCertificates = (List<string>)proxy.SslCertificates;
+                            sslCertificates.Remove(prevCertificateSelfLink);
+                            sslCertificates.Add(newCertificateSelfLink);
+
+                            TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
+                            sslCertRequest.SslCertificates = sslCertificates;
+                            TargetSslProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetSslProxiesResource(getComputeService()).SetSslCertificates(sslCertRequest, project, proxy.Name);
+                            Operation response = setSSLRequest.Execute();
+
+                            if (response.HttpErrorStatusCode != null)
+                            {
+                                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
+                                throw new Exception(response.HttpErrorMessage);
+                            }
+                            if (response.Error != null)
+                            {
+                                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
+                                throw new Exception(response.Error.ToString());
+                            }
+
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                string message = "Error attempting to bind added certificate to resource";
+                Logger.Error(message);
+                throw new Exception(message);
             }
         }
 
