@@ -54,7 +54,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
         public void insert(SslCertificate sslCertificate, bool overwrite)
         {
             string alias = sslCertificate.Name;
-            string tempAlias = alias + "Temp";
+            string tempAlias = alias + "-temp";
             string targetCertificateSelfLink = string.Empty;
             string tempCertificateSelfLink = string.Empty;
 
@@ -115,8 +115,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                     if (string.IsNullOrEmpty(tempCertificateSelfLink))
                     {
                         Logger.Debug("Certificate exists in GCP.  Begin renewal by adding certificate with temporary alias.");
-                        SslCertificate tempSSLCertificate = sslCertificate;
-                        tempSSLCertificate.Name = tempAlias;
+                        SslCertificate tempSSLCertificate = new SslCertificate() { Certificate = sslCertificate.Certificate, PrivateKey = sslCertificate.PrivateKey, Name = tempAlias };
                         insert(tempSSLCertificate);
                         try
                         {
@@ -268,10 +267,15 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 {
                     foreach (TargetHttpsProxy proxy in httpsProxyList.Items)
                     {
-                        if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                        if (proxy.SslCertificates.Contains(prevCertificateSelfLink) || proxy.SslCertificates.Contains(newCertificateSelfLink))
                         {
                             List<string> sslCertificates = (List<string>)proxy.SslCertificates;
-                            sslCertificates.Remove(prevCertificateSelfLink);
+
+                            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                                sslCertificates.Remove(prevCertificateSelfLink);
+                            if (proxy.SslCertificates.Contains(newCertificateSelfLink))
+                                sslCertificates.Remove(newCertificateSelfLink);
+
                             sslCertificates.Add(newCertificateSelfLink);
 
                             TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
@@ -303,10 +307,15 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 {
                     foreach (TargetSslProxy proxy in proxyList.Items)
                     {
-                        if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                        if (proxy.SslCertificates.Contains(prevCertificateSelfLink) || proxy.SslCertificates.Contains(newCertificateSelfLink))
                         {
                             List<string> sslCertificates = (List<string>)proxy.SslCertificates;
-                            sslCertificates.Remove(prevCertificateSelfLink);
+
+                            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                                sslCertificates.Remove(prevCertificateSelfLink);
+                            if (proxy.SslCertificates.Contains(newCertificateSelfLink))
+                                sslCertificates.Remove(newCertificateSelfLink);
+
                             sslCertificates.Add(newCertificateSelfLink);
 
                             TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
