@@ -39,11 +39,12 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
     {
         private string jsonKey;
         private string project;
+        private string region = string.Empty;
         private ComputeService service;
 
         public GCPStore(AnyJobConfigInfo config)
         {
-            this.project = config.Store.StorePath;
+            SetProjectAndRegion(config.Store.StorePath);
             Dictionary<string, string> storeProperties = JsonConvert.DeserializeObject<Dictionary<string, string>>((string)config.Store.Properties);
             this.jsonKey = storeProperties["jsonKey"];
 
@@ -159,14 +160,15 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
         public List<AgentCertStoreInventoryItem> list()
         {
             List<AgentCertStoreInventoryItem> inventoryItems = new List<AgentCertStoreInventoryItem>();
-            SslCertificatesResource.ListRequest request = getComputeService().SslCertificates.List(this.project);
-
-            Data.SslCertificateList response;
+            SslCertificatesResource.ListRequest globalRequest = getComputeService().SslCertificates.List(this.project);
+            RegionSslCertificatesResource.ListRequest regionRequest = getComputeService().RegionSslCertificates.List(this.project, this.region);
+            
+            SslCertificateList response;
             do
             {
                 // To execute asynchronously in an async method, replace `request.Execute()` as shown:
-                response = request.Execute();
-                // response = await request.ExecuteAsync();
+                response = string.IsNullOrEmpty(region) ? globalRequest.Execute() : regionRequest.Execute();
+                // response = string.IsNullOrEmpty(region) ? await globalRequest.ExecuteAsync() : await regionRequest.ExecuteAsync();
 
                 if (response.Items == null)
                 {
@@ -211,7 +213,14 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                         });
                     }
                 }
-                request.PageToken = response.NextPageToken;
+                if (string.IsNullOrEmpty(region))
+                {
+                    globalRequest.PageToken = response.NextPageToken;
+                }
+                else
+                {
+                    regionRequest.PageToken = response.NextPageToken;
+                }
             } while (response.NextPageToken != null);
 
             return inventoryItems;
@@ -219,8 +228,17 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
         public void insert(SslCertificate sslCertificate)
         {
-            SslCertificatesResource.InsertRequest request = getComputeService().SslCertificates.Insert(sslCertificate, this.project);
-            Operation response = request.Execute();
+            Operation response = new Operation();
+            if (string.IsNullOrEmpty(region))
+            {
+                SslCertificatesResource.InsertRequest request = getComputeService().SslCertificates.Insert(sslCertificate, this.project);
+                response = request.Execute();
+            }
+            else
+            {
+                RegionSslCertificatesResource.InsertRequest request = getComputeService().RegionSslCertificates.Insert(sslCertificate, this.project, region);
+                response = request.Execute();
+            }
 
             if (response.HttpErrorStatusCode != null)
             {
@@ -238,8 +256,17 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
         public void delete(string alias)
         {
-            SslCertificatesResource.DeleteRequest request = this.getComputeService().SslCertificates.Delete(this.project, alias);
-            Operation response = request.Execute();
+            Operation response = new Operation();
+            if (string.IsNullOrEmpty(region))
+            {
+                SslCertificatesResource.DeleteRequest request = getComputeService().SslCertificates.Delete(this.project, alias);
+                response = request.Execute();
+            }
+            else
+            {
+                RegionSslCertificatesResource.DeleteRequest request = getComputeService().RegionSslCertificates.Delete(this.project, region, alias);
+                response = request.Execute();
+            }
 
             if (response.HttpErrorStatusCode != null)
             {
@@ -260,8 +287,17 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             try
             {
                 // For HTTPS proxy resources
-                TargetHttpsProxiesResource.ListRequest httpsRequest = new TargetHttpsProxiesResource(getComputeService()).List(project);
-                Data.TargetHttpsProxyList httpsProxyList = httpsRequest.Execute();
+                TargetHttpsProxyList httpsProxyList = new TargetHttpsProxyList();
+                if (string.IsNullOrEmpty(region))
+                {
+                    TargetHttpsProxiesResource.ListRequest request = new TargetHttpsProxiesResource(getComputeService()).List(project);
+                    httpsProxyList = request.Execute();
+                }
+                else
+                {
+                    RegionTargetHttpsProxiesResource.ListRequest request = new RegionTargetHttpsProxiesResource(getComputeService()).List(project, region);
+                    httpsProxyList = request.Execute();
+                }
 
                 if (httpsProxyList.Items != null)
                 {
@@ -293,50 +329,49 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                                 Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
                                 throw new Exception(response.Error.ToString());
                             }
-
                         }
                     }
                 }
 
 
                 // For SSL proxy resources
-                TargetSslProxiesResource.ListRequest sslRequest = new TargetSslProxiesResource(getComputeService()).List(project);
-                Data.TargetSslProxyList proxyList = sslRequest.Execute();
+                //TargetSslProxiesResource.ListRequest sslRequest = new TargetSslProxiesResource(getComputeService()).List(project);
+                //TargetSslProxyList proxyList = sslRequest.Execute();
 
-                if (proxyList.Items != null)
-                {
-                    foreach (TargetSslProxy proxy in proxyList.Items)
-                    {
-                        if (proxy.SslCertificates.Contains(prevCertificateSelfLink) || proxy.SslCertificates.Contains(newCertificateSelfLink))
-                        {
-                            List<string> sslCertificates = (List<string>)proxy.SslCertificates;
+                //if (proxyList.Items != null)
+                //{
+                //    foreach (TargetSslProxy proxy in proxyList.Items)
+                //    {
+                //        if (proxy.SslCertificates.Contains(prevCertificateSelfLink) || proxy.SslCertificates.Contains(newCertificateSelfLink))
+                //        {
+                //            List<string> sslCertificates = (List<string>)proxy.SslCertificates;
 
-                            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
-                                sslCertificates.Remove(prevCertificateSelfLink);
-                            if (proxy.SslCertificates.Contains(newCertificateSelfLink))
-                                sslCertificates.Remove(newCertificateSelfLink);
+                //            if (proxy.SslCertificates.Contains(prevCertificateSelfLink))
+                //                sslCertificates.Remove(prevCertificateSelfLink);
+                //            if (proxy.SslCertificates.Contains(newCertificateSelfLink))
+                //                sslCertificates.Remove(newCertificateSelfLink);
 
-                            sslCertificates.Add(newCertificateSelfLink);
+                //            sslCertificates.Add(newCertificateSelfLink);
 
-                            TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
-                            sslCertRequest.SslCertificates = sslCertificates;
-                            TargetSslProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetSslProxiesResource(getComputeService()).SetSslCertificates(sslCertRequest, project, proxy.Name);
-                            Operation response = setSSLRequest.Execute();
+                //            TargetSslProxiesSetSslCertificatesRequest sslCertRequest = new TargetSslProxiesSetSslCertificatesRequest();
+                //            sslCertRequest.SslCertificates = sslCertificates;
+                //            TargetSslProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetSslProxiesResource(getComputeService()).SetSslCertificates(sslCertRequest, project, proxy.Name);
+                //            Operation response = setSSLRequest.Execute();
 
-                            if (response.HttpErrorStatusCode != null)
-                            {
-                                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
-                                throw new Exception(response.HttpErrorMessage);
-                            }
-                            if (response.Error != null)
-                            {
-                                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
-                                throw new Exception(response.Error.ToString());
-                            }
+                //            if (response.HttpErrorStatusCode != null)
+                //            {
+                //                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.HttpErrorMessage);
+                //                throw new Exception(response.HttpErrorMessage);
+                //            }
+                //            if (response.Error != null)
+                //            {
+                //                Logger.Error($"Error setting SSL Certificates for resource: {proxy.Name} " + response.Error.ToString());
+                //                throw new Exception(response.Error.ToString());
+                //            }
 
-                        }
-                    }
-                }
+                //        }
+                //    }
+                //}
             }
             catch (Exception ex)
             {
@@ -348,8 +383,18 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
         private string GetCeritificateSelfLink(string prevAlias)
         {
-            SslCertificatesResource.GetRequest request = this.getComputeService().SslCertificates.Get(project, prevAlias);
-            Data.SslCertificate certificate = request.Execute();
+            SslCertificate certificate = new SslCertificate();
+
+            if (string.IsNullOrEmpty(region))
+            {
+                SslCertificatesResource.GetRequest request = this.getComputeService().SslCertificates.Get(project, prevAlias);
+                certificate = request.Execute();
+            }
+            else
+            {
+                RegionSslCertificatesResource.GetRequest request = this.getComputeService().RegionSslCertificates.Get(project, region, prevAlias);
+                certificate = request.Execute();
+            }
 
             if (certificate == null || string.IsNullOrEmpty(certificate.Certificate))
                 return null;
@@ -398,6 +443,17 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 credential = credential.CreateScoped("https://www.googleapis.com/auth/cloud-platform");
             }
             return credential;
+        }
+
+        private void SetProjectAndRegion(string storePath)
+        {
+            project = storePath;
+            if (storePath.Contains("/"))
+            {
+                string[] projectRegion = storePath.Split('/');
+                project = projectRegion[0];
+                region = projectRegion[1];
+            }
         }
     }
 }
