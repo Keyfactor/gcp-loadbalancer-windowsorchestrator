@@ -314,10 +314,22 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
 
                             sslCertificates.Add(newCertificateSelfLink);
 
-                            TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
-                            httpsCertRequest.SslCertificates = sslCertificates;
-                            TargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, proxy.Name);
-                            Operation response = setSSLRequest.Execute();
+                            Operation response = new Operation();
+
+                            if (string.IsNullOrEmpty(region))
+                            {
+                                TargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new TargetHttpsProxiesSetSslCertificatesRequest();
+                                httpsCertRequest.SslCertificates = sslCertificates;
+                                TargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new TargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, proxy.Name);
+                                response = setSSLRequest.Execute();
+                            }
+                            else
+                            {
+                                RegionTargetHttpsProxiesSetSslCertificatesRequest httpsCertRequest = new RegionTargetHttpsProxiesSetSslCertificatesRequest();
+                                httpsCertRequest.SslCertificates = sslCertificates;
+                                RegionTargetHttpsProxiesResource.SetSslCertificatesRequest setSSLRequest = new RegionTargetHttpsProxiesResource(getComputeService()).SetSslCertificates(httpsCertRequest, project, region, proxy.Name);
+                                response = setSSLRequest.Execute();
+                            }
 
                             if (response.HttpErrorStatusCode != null)
                             {
