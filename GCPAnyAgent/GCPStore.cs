@@ -387,7 +387,7 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             }
             catch (Exception ex)
             {
-                string message = "Error attempting to bind added certificate to resource";
+                string message = "Error attempting to bind added certificate to resource " + ex.Message;
                 Logger.Error(message);
                 throw new Exception(message);
             }
