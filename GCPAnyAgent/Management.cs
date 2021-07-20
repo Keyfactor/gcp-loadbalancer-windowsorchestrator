@@ -81,9 +81,16 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             // Extract server certificate
             String certStart = "-----BEGIN CERTIFICATE-----\n";
             String certEnd = "\n-----END CERTIFICATE-----";
+
             Func<String, String> pemify = null;
             pemify = (ss => ss.Length <= 64 ? ss : ss.Substring(0, 64) + "\n" + pemify(ss.Substring(64)));
-            String certPem = certStart + pemify(Convert.ToBase64String(p.GetCertificate(alias).Certificate.GetEncoded())) + certEnd;
+
+            string certPem = string.Empty;
+            foreach (X509CertificateEntry certEntry in p.GetCertificateChain(alias))
+            {
+                certPem += (certStart + pemify(Convert.ToBase64String(certEntry.Certificate.GetEncoded())) + certEnd + "\n");
+            }
+
             return (Encoding.ASCII.GetBytes(certPem), Encoding.ASCII.GetBytes(privateKeyString));
         }
 
@@ -145,6 +152,8 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
                 switch (config.Job.OperationType)
                 {
                     case AnyJobOperationType.Add:
+                        if (string.IsNullOrEmpty(config.Job.PfxPassword))
+                            throw new Exception("Error attempting to add or renew a certificate.  No private key is present.");
                         store.insert(GetSslCertificate(config), config.Job.Overwrite);
                         break;
                     case AnyJobOperationType.Remove:
