@@ -233,11 +233,13 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             {
                 SslCertificatesResource.InsertRequest request = getComputeService().SslCertificates.Insert(sslCertificate, this.project);
                 response = request.Execute();
+                System.Threading.Thread.Sleep(10000);
             }
             else
             {
                 RegionSslCertificatesResource.InsertRequest request = getComputeService().RegionSslCertificates.Insert(sslCertificate, this.project, region);
                 response = request.Execute();
+                System.Threading.Thread.Sleep(10000);
             }
 
             if (response.HttpErrorStatusCode != null)

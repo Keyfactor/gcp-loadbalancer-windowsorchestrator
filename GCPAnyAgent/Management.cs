@@ -88,6 +88,8 @@ namespace Keyfactor.Extensions.Orchestrator.GCP
             string certPem = string.Empty;
             foreach (X509CertificateEntry certEntry in p.GetCertificateChain(alias))
             {
+                if (certEntry.Certificate.IssuerDN.ToString() == certEntry.Certificate.SubjectDN.ToString())
+                    continue;
                 certPem += (certStart + pemify(Convert.ToBase64String(certEntry.Certificate.GetEncoded())) + certEnd + "\n");
             }
 
