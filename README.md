@@ -1,7 +1,7 @@
-# GCP AnyAgent
-## Gcp
+# GCP Load Balancer
+## Orchestrator
 
-This integration is used to inventory and manage certificates in GCP. 
+The GCP Load Balancer Orchestrator allows for the management of Google Cloud Platform Load Balancer certificate stores.  Inventory, Management-Add, and Management-Remove functions are supported.  Also, re-binding to endpoints IS supported for certificate renewals (but NOT adding new certificates).  The orchestrator uses the Google Cloud Compute Engine API to manage stores.
 
 <!-- add integration specific information below -->
 *** 
