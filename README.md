@@ -1,5 +1,5 @@
 # GCP Load Balancer
-## Orchestrator
+## Windows-orchestrator
 
 <!-- add integration specific information below -->
 
