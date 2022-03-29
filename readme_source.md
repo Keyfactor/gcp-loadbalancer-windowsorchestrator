@@ -1,10 +1,3 @@
-# {{ name }}
-## {{ integration_type | capitalize }}
-
-<!-- add integration specific information below -->
-
-***
-
 # Introduction 
 - {{ description }}
 
