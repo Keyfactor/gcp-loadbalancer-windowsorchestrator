@@ -12,7 +12,6 @@ The Windows Orchestrator is part of the Keyfactor software distribution and is a
 
 Note that in Keyfactor Version 9, the Windows Orchestrator have been replaced by the Universal Orchestrator. While this AnyAgent continues to work with the Windows Orchestrator, and the Windows Orchestrator is supported alongside the Universal Orchestrator talking to Keyfactor version 9, AnyAgent plugins cannot be used with the Universal Orchestrator.
 
----
 
 
 ## Support for GCP Load Balancer
@@ -24,9 +23,6 @@ ___
 
 
 
-
-
----
 
 # Introduction 
 - The GCP Load Balancer Orchestrator allows for the management of Google Cloud Platform Load Balancer certificate stores.  Inventory, Management-Add, and Management-Remove functions are supported.  Also, re-binding to endpoints IS supported for certificate renewals (but NOT adding new certificates).  The orchestrator uses the Google Cloud Compute Engine API to manage stores.
